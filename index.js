@@ -113,6 +113,12 @@ await fetchPricesAndInitState()
 const checkHourPrice = schedule('1 * * * *', () => {
   current = getCurrent()
   checkCurrentPrice(() => console.log('STÄNG AV'), () => console.log('SÄTT PÅ'))
+  axios.post(`https://maker.ifttt.com/trigger/tibber_hour_price/with/key/${IFTTT_KEY}`)
+      .then(res => {
+        console.log(res.data)
+      }).catch(error => {
+        console.log(error)
+      });
 }, {
   scheduled: false,
   ...TIME_ZONE
@@ -139,10 +145,3 @@ http.createServer(function (req, res) {
 }).listen(process.env.PORT || 3000);
 
 console.log('Time to save some money')
-
-axios.post(`https://maker.ifttt.com/trigger/tibber_hour_price/with/key/${IFTTT_KEY}`)
-      .then(res => {
-        console.log(res.data)
-      }).catch(error => {
-        console.log(error)
-      })
