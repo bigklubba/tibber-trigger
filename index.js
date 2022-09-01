@@ -131,8 +131,8 @@ fetchNewDayData.start()
 
 http.createServer(function (req, res) {
     const currentHour = new Date().toLocaleTimeString('sv-SE', TIME_ZONE).slice(0,2)
-    console.log(`Just got a request at ${req.url}!`)
-    res.write(currentHour + ' ' + current.total + ' ' + current.level);
+    console.log(`Just got a request at ${req.url}!`, currentHour)
+    res.write(current.total + ' ' + current.level);
     res.end();
 }).listen(process.env.PORT || 3000);
 
