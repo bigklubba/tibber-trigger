@@ -143,4 +143,6 @@ console.log('Time to save some money')
 axios.post(`https://maker.ifttt.com/trigger/tibber_hour_price/with/key/${IFTTT_KEY}`)
       .then(res => {
         console.log(res.data)
+      }).catch(error => {
+        console.log(error)
       })
