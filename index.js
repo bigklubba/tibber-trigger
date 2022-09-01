@@ -1,7 +1,9 @@
 import http from 'http';
 import { GraphQLClient, gql } from 'graphql-request'
 import { schedule } from 'node-cron'
+import axios from 'axios';
 
+const IFTTT_KEY = process.env.IFTTT_KEY
 const TOKEN = process.env.TIBBER_TOKEN
 const TIME_ZONE = { timezone: 'Europe/Stockholm' }
 
@@ -118,7 +120,7 @@ const checkHourPrice = schedule('1 * * * *', () => {
 
 /* Fetch new prices at 00:00 */
 const fetchNewDayData = schedule('0 0 * * *', async() => {
-  await fetchPricesAndInitState()
+  await fetchPricesAndInitState();
 }, {
   scheduled: false,
   ...TIME_ZONE
@@ -137,3 +139,8 @@ http.createServer(function (req, res) {
 }).listen(process.env.PORT || 3000);
 
 console.log('Time to save some money')
+
+axios.post(`https://maker.ifttt.com/trigger/tibber_hour_price/with/key/${IFTTT_KEY}`)
+      .then(res => {
+        console.log(res.data)
+      })
