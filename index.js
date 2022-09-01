@@ -124,11 +124,6 @@ const fetchNewDayData = schedule('0 0 * * *', async() => {
   ...TIME_ZONE
 });
 
-schedule('* * * * *', () => {
-    console.log('running a task every minute');
-});
-  
-
 checkCurrentPrice(() => console.log('STÄNG AV'), () => console.log('SÄTT PÅ'))
 
 checkHourPrice.start()
