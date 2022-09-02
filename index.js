@@ -1,13 +1,10 @@
-import http from 'http';
+import express from 'express';
 import { GraphQLClient, gql } from 'graphql-request'
-import { schedule } from 'node-cron'
 import axios from 'axios';
 
 const IFTTT_KEY = process.env.IFTTT_KEY
 const TOKEN = process.env.TIBBER_TOKEN
 const TIME_ZONE = { timezone: 'Europe/Stockholm' }
-
-let data, today, current, mean
 
 const meanPrice = (priceInfos) => {
     let sum = 0
@@ -57,41 +54,6 @@ const fetchPrices = async () => {
   return d
 }
 
-const getCurrent = () => { 
-
-  /*
-  {
-    total: 2.8531,
-    energy: 2.2412,
-    tax: 0.6119,
-    startsAt: '2022-08-23T00:00:00.000+02:00'
-  },
-
-  */
-  //const currentTime = new Date().toLocaleTimeString('sv', {timezone: 'Europe/Stockholm'})
-  const currentHour = new Date().toLocaleTimeString('sv-SE', TIME_ZONE).slice(0,2)
-  console.log('CURRENT HOUR:', currentHour)
-  const currentPriceElement = today.find(priceAt => {
-    const time = priceAt.startsAt;
-    const hour = time.slice(11, 13)
-    return hour === currentHour
-  })
-  
-  console.log(currentPriceElement)
-  return currentPriceElement;
-}
-
-const checkCurrentPrice =  (aboveActionCallback, belowActionCallback) => {
-  const today = data.viewer.homes[0].currentSubscription.priceInfo.today
-  console.log('Medel:', mean)
-  console.log('Pris just nu:', current.total, current.level)
-  if (current.total > mean) {
-    aboveActionCallback()
-  } else {
-    belowActionCallback()
-  }
-}
-
 const endpoint = 'https://api.tibber.com/v1-beta/gql'
 
 const graphQLClient = new GraphQLClient(endpoint, {
@@ -100,48 +62,42 @@ const graphQLClient = new GraphQLClient(endpoint, {
   },
 })
 
-const fetchPricesAndInitState = async() => {
-  data = await fetchPrices();
-  today = data.viewer.homes[0].currentSubscription.priceInfo.today
-  current = data.viewer.homes[0].currentSubscription.priceInfo.current
-  mean = meanPrice(today)
-}
-
-await fetchPricesAndInitState()
-
-/* Check if current hour price is under mean price every hour */
-const checkHourPrice = schedule('1 * * * *', () => {
-  current = getCurrent()
-  checkCurrentPrice(() => console.log('STÄNG AV'), () => console.log('SÄTT PÅ'))
-  axios.post(`https://maker.ifttt.com/trigger/tibber_hour_price/with/key/${IFTTT_KEY}`)
+const sendWebhook = ( data ) => {
+  axios.post(`https://maker.ifttt.com/trigger/tibber_hour_price/json/with/key/${IFTTT_KEY}`, data)
       .then(res => {
         console.log(res.data)
       }).catch(error => {
         console.log(error)
       });
-}, {
-  scheduled: false,
-  ...TIME_ZONE
-});
+}
 
-/* Fetch new prices at 00:00 */
-const fetchNewDayData = schedule('0 0 * * *', async() => {
-  await fetchPricesAndInitState();
-}, {
-  scheduled: false,
-  ...TIME_ZONE
-});
+const app = express()
+app.get('/', (req, res) => {
+   res.send('hej');
+})
 
-checkCurrentPrice(() => console.log('STÄNG AV'), () => console.log('SÄTT PÅ'))
+const onPost = async () => {
+  const data = await fetchPrices();
+  const today = data.viewer.homes[0].currentSubscription.priceInfo.today
+  const current = data.viewer.homes[0].currentSubscription.priceInfo.current
+  const mean = meanPrice(today)
 
-checkHourPrice.start()
-fetchNewDayData.start()
+  if (current.total > mean) {
+    console.log("above");
+    sendWebhook( { current: current.total, level: current.level, mean: mean })
+  } else {
+    console.log('below');
+  }
 
-http.createServer(function (req, res) {
-    const currentHour = new Date().toLocaleTimeString('sv-SE', TIME_ZONE).slice(0,2)
-    console.log(`Just got a request at ${req.url}!`, currentHour)
-    res.write(current.total + ' ' + current.level);
-    res.end();
-}).listen(process.env.PORT || 3000);
+  return current.total + ' ' + current.level + ' ' + mean
+}
+
+app.post('/', async (req, res) => {
+  const message = await onPost()
+  console.log('resp', message)
+  res.send(message)
+})
+
+app.listen(process.env.PORT || 3000)
 
 console.log('Time to save some money')
